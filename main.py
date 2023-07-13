@@ -1,16 +1,38 @@
-# This is a sample Python script.
+import requests
+import hashlib
+import sys
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+def request_api_data(query_char):
+    url = 'https://api.pwnedpasswords.com/range/' + query_char
+    res = requests.get(url)
+    if res.status_code != 200:
+        raise RuntimeError(f'Error fetching: {res.status_code}, check the api and try again')
+    return res
+
+def get_password_leaks_count(hashes, hash_to_check):
+    hashes = (line.split(':') for line in hashes.text.splitlines())
+    for h, count in hashes:
+        print(h, count)
+        if h == hash_to_check:
+            return count
+    return 0
+
+def pwned_api_check(password):
+    sha1password = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
+    first5_char, tail = sha1password[:5], sha1password[5:]
+    response = request_api_data(first5_char)
+    return get_password_leaks_count(response, tail)
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+def main(args):
+    for password in args:
+        count = pwned_api_check(password)
+        if count:
+            print(f'{password} was found {count} times... you should probably change your password!')
+        else:
+            print(f'{password} was NOT found. Carry on!')
+    return  'done!'
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+   sys.exit(main(sys.argv[1:]))
